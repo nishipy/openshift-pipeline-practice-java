@@ -10,7 +10,7 @@ $ oc new-project app-devops
 ```
 
 ## Jenkins起動
-Jenkinsを起動する。Jenkinsは動作が重いため、必要に応じて`resource`を調整してください。
+Jenkinsを起動する[^1]。Jenkinsは動作が重いため、必要に応じて`resource`を調整してください。
 また、Jenkinsはのちに`app-development`のリソースを操作するために権限を付与しておく。
 
 ```
@@ -24,13 +24,18 @@ $ oc policy add-role-to-user edit system:serviceaccount:app-devops:jenkins -n ap
 clusterrole.rbac.authorization.k8s.io/edit added: "system:serviceaccount:app-devops:jenkins"
 ```
 
-## Slave imageの作成
-Jenkinsパイプラインを実際に動作させるJenkins slaveのイメージを作成する。
+## Agent imageの作成
+Jenkinsパイプラインを実際に動作させるJenkins agentのイメージを作成する[^2]。
 `jenkins-agent-maven`をベースとしながら、テストに必要なpostgresqlのクライアントをインストールしたJenkins Slaveを作成する。
 作成方法は、Dockerfileからビルドする。
 
 ```
 $ cat etc/Dockerfile_jenkins_agent
+FROM image-registry.openshift-image-registry.svc:5000/openshift/jenkins-agent-maven
+USER root
+RUN yum install -y postgresql
+USER 1001
+
 $ oc process -f openshift/custom-jenkins-agent.yaml | oc apply -n app-devops -f -
 buildconfig.build.openshift.io/custom-jenkins-agent-maven created
 imagestream.image.openshift.io/custom-jenkins-agent-maven created
@@ -39,18 +44,23 @@ $ oc start-build custom-jenkins-agent-maven -n app-devops
 ```
 
 ## Jenkinsの設定
-おそらく、上のSlave Imageを作っている間にJenkinsが起動したはずだ。
+おそらく、上のAgent Imageを作っている間にJenkinsが起動したはずだ。
 Jenkins側の設定をいくつか行う。
 
 ### プラグイン
 本サンプルで利用する、Jekinsfileの記述ではデフォルのプラグインでは古く動作しないためアップデートを行う。
 また、Webhookを簡単に利用できるようにするために新規にプラグインをインストールする。
 
+Jenkinsにログイン後、[Jenkinsの管理] - [プラグインマネージャー]で作業を実施する。
+
 - アップデート
     - kubernetes
     - Pipeline: declarative
 - インストール
     - generic webhook
+
+また、プラグインをカスタマイズしたイメージをビルドする場合は、以下の手順を参照する。
+https://github.com/mosuke5/openshift-custom-jenkins
 
 ### プロジェクト
 プラグインのアップデートとインストールが終わったら、アプリケーションのパイプラインを実行するためにJenkins Itemを作成する。
@@ -141,3 +151,9 @@ https://github.com/redhat-cop/containers-quickstarts/
 
 以下に、jenkins slaveのベースイメージもあるので、こちらを元にカスタマイズすることもできる。  
 https://quay.io/repository/openshift/origin-jenkins-agent-base?tab=tags
+
+
+
+[^1]: テンプレートからのJenkinsサービスの作成に関しては、[こちらのドキュメント](https://access.redhat.com/documentation/ja-jp/openshift_container_platform/4.5/html/images/images-other-jenkins#images-other-jenkins-create-service_images-other-jenkins)も参照
+
+[^2]: 詳しくは[カスタムのJenkins agentのイメージを作るときに知っておくと良いこと](https://rheb.hatenablog.com/entry/openshift-custom-jenkins-agent)を参照
