@@ -110,10 +110,12 @@ pipeline {
 
       steps {
         echo "integration-test"
-        sh 'curl -I pipeline-practice-java-app-development.apps.cluster-0b14.0b14.sandbox265.opentlc.com/health'
-        sh 'curl -f -o health.json "pipeline-practice-java-app-development.apps.cluster-0b14.0b14.sandbox265.opentlc.com/health"'
-        def json = readJSON file: 'health.json'
-        echo "STATUS: ${json.status}"
+        script {
+          sh 'curl -I pipeline-practice-java-app-development.apps.cluster-0b14.0b14.sandbox265.opentlc.com/health'
+          sh 'curl -f -o health.json "pipeline-practice-java-app-development.apps.cluster-0b14.0b14.sandbox265.opentlc.com/health"'
+          json = readJSON file: 'health.json'
+          echo "STATUS: ${json.status}"
+        }
       }
     }
   }
